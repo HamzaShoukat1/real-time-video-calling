@@ -1,16 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Video,
-  Globe,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  Crown,
-  Settings,
-  Bell,
+
 } from 'lucide-react';
 
 export default function Navbar({
