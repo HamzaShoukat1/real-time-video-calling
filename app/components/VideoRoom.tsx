@@ -44,6 +44,8 @@ export default function VideoRoom({ roomId }: { roomId: string }) {
                 },
                 showPreJoinView: false,
                 showTextChat: true,
+                showRoomTimer: true,
+                showRoomDetailsButton: false, // Disables the empty room details drawer for anonymous 1-on-1 calls
                 maxUsers: 2,
             });
         };
