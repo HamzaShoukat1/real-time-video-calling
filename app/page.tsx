@@ -20,12 +20,19 @@ import { useEffect, useState, useRef } from "react";
 
 type Gender = "Male" | "Female" | "Other";
 type FilterGender = "All" | Gender;
-type MatchPreferences = { isAdult: true; gender: Gender; filterGender: FilterGender };
+type MatchPreferences = {
+  isAdult: true;
+  gender: Gender;
+  filterGender: FilterGender;
+};
 import VideoRoom from "./components/VideoRoom";
 
-const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000", {
-  transports: ["websocket"],
-});
+const socket = io(
+  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000",
+  {
+    transports: ["websocket"],
+  },
+);
 
 export default function Page() {
   const [status, setstatus] = useState("idle");
@@ -46,7 +53,11 @@ export default function Page() {
       const saved = sessionStorage.getItem("match-preferences");
       if (saved) {
         const parsed = JSON.parse(saved) as MatchPreferences;
-        if (parsed.isAdult === true && ["Male", "Female", "Other"].includes(parsed.gender) && ["All", "Male", "Female", "Other"].includes(parsed.filterGender)) {
+        if (
+          parsed.isAdult === true &&
+          ["Male", "Female", "Other"].includes(parsed.gender) &&
+          ["All", "Male", "Female", "Other"].includes(parsed.filterGender)
+        ) {
           setPreferences(parsed);
           setIsAdult(true);
           setGender(parsed.gender);
@@ -68,8 +79,15 @@ export default function Page() {
   const savePreferences = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isAdult || !gender || !filterGender) return;
-    const nextPreferences: MatchPreferences = { isAdult: true, gender, filterGender };
-    sessionStorage.setItem("match-preferences", JSON.stringify(nextPreferences));
+    const nextPreferences: MatchPreferences = {
+      isAdult: true,
+      gender,
+      filterGender,
+    };
+    sessionStorage.setItem(
+      "match-preferences",
+      JSON.stringify(nextPreferences),
+    );
     setPreferences(nextPreferences);
     setShowEntryModal(false);
     if (status === "waiting") socket.emit("start-call", nextPreferences);
@@ -189,36 +207,86 @@ export default function Page() {
         Match preferences
       </button>
       {showEntryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="entry-title">
-          <form onSubmit={savePreferences} className="w-full max-w-md space-y-5 rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="entry-title"
+        >
+          <form
+            onSubmit={savePreferences}
+            className="w-full max-w-md space-y-5 rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl"
+          >
             <div>
-              <h2 id="entry-title" className="text-2xl font-bold">Before you continue</h2>
-              <p className="mt-1 text-sm text-zinc-400">Confirm your age and choose who you want to meet.</p>
+              <h2 id="entry-title" className="text-2xl font-bold">
+                Before you continue
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Confirm your age and choose who you want to meet.
+              </p>
             </div>
             <label className="flex cursor-pointer items-center gap-3 text-sm">
-              <input type="checkbox" checked={isAdult} onChange={(event) => setIsAdult(event.target.checked)} className="h-4 w-4 accent-purple-500" />
+              <input
+                type="checkbox"
+                checked={isAdult}
+                onChange={(event) => setIsAdult(event.target.checked)}
+                className="h-4 w-4 accent-purple-500"
+              />
               I am 18 years or older
             </label>
-            <label className="block text-sm font-medium">My Gender
-              <select required value={gender} onChange={(event) => setGender(event.target.value as Gender | "")} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white">
-                <option value="" disabled>Select your gender</option>
-                <option>Male</option><option>Female</option><option>Other</option>
+            <label className="block text-sm font-medium">
+              My Gender
+              <select
+                required
+                value={gender}
+                onChange={(event) =>
+                  setGender(event.target.value as Gender | "")
+                }
+                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white"
+              >
+                <option value="" disabled>
+                  Select your gender
+                </option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
               </select>
             </label>
-            <label className="block text-sm font-medium">Filter / Match With
-              <select required value={filterGender} onChange={(event) => setFilterGender(event.target.value as FilterGender | "")} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white">
-                <option value="" disabled>Select a match preference</option>
-                <option>All</option><option>Male</option><option>Female</option><option>Other</option>
+            <label className="block text-sm font-medium">
+              Filter / Match With
+              <select
+                required
+                value={filterGender}
+                onChange={(event) =>
+                  setFilterGender(event.target.value as FilterGender | "")
+                }
+                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white"
+              >
+                <option value="" disabled>
+                  Select a match preference
+                </option>
+                <option>All</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
               </select>
             </label>
-            <button type="submit" disabled={!isAdult || !gender || !filterGender} className="w-full rounded-lg cursor-pointer bg-white px-4 py-3 font-bold text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40">Continue</button>
+            <button
+              type="submit"
+              disabled={!isAdult || !gender || !filterGender}
+              className="w-full rounded-lg cursor-pointer bg-white px-4 py-3 font-bold text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Continue
+            </button>
           </form>
         </div>
       )}
       <Navbar show={!isConnected} />
       <main
         className={`relative flex w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-black via-zinc-900 to-black text-white transition-all duration-500 ${
-          isConnected ? "min-h-screen px-4 py-4" : "min-h-[calc(100vh-4rem)] px-6 py-20"
+          isConnected
+            ? "min-h-screen px-4 py-4"
+            : "min-h-[calc(100vh-4rem)] px-6 py-20"
         }`}
       >
         {/* Top Ambient Purple Glow */}
@@ -257,7 +325,12 @@ export default function Page() {
               key="idle"
               initial="hidden"
               animate="visible"
-              exit={{ opacity: 0, y: -20, scale: 0.97, transition: { duration: 0.3 } }}
+              exit={{
+                opacity: 0,
+                y: -20,
+                scale: 0.97,
+                transition: { duration: 0.3 },
+              }}
               variants={{
                 hidden: { opacity: 0 },
                 visible: {
@@ -286,14 +359,20 @@ export default function Page() {
                 <motion.div
                   variants={{
                     hidden: { opacity: 0, y: 12 },
-                    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: 0.4 },
+                    },
                   }}
                   className="mb-6 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/10 px-3.5 py-1 text-xs font-medium text-purple-200"
                 >
                   <Clock className="h-3 w-3 text-purple-400" />
                   <span>Last chat: {formatDuration(lastCallDuration)}</span>
                   <span className="text-purple-400">•</span>
-                  <span>{chatCount} {chatCount === 1 ? "chat" : "chats"} completed</span>
+                  <span>
+                    {chatCount} {chatCount === 1 ? "chat" : "chats"} completed
+                  </span>
                 </motion.div>
               )}
 
@@ -370,7 +449,11 @@ export default function Page() {
               <div className="relative flex h-32 w-32 items-center justify-center">
                 <motion.span
                   animate={{ scale: [1, 1.9], opacity: [0.55, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                  }}
                   className="absolute h-20 w-20 rounded-full border border-purple-400/50 bg-purple-500/10"
                 />
                 <motion.span
@@ -446,7 +529,11 @@ export default function Page() {
               <div className="relative mb-6 flex h-24 w-24 items-center justify-center">
                 <motion.span
                   animate={{ scale: [1, 1.45], opacity: [0.45, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                  }}
                   className="absolute h-20 w-20 rounded-full border border-red-500/40 bg-red-500/10"
                 />
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 shadow-[0_0_35px_rgba(239,68,68,0.25)] backdrop-blur-xl">
@@ -536,7 +623,11 @@ export default function Page() {
               <motion.div
                 initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  delay: 0.2,
+                  duration: 0.4,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/70 px-4 py-3 shadow-lg backdrop-blur-xl sm:px-6"
               >
                 {/* Top-Left: Live Connected Indicator + Room Tag */}
@@ -607,7 +698,11 @@ export default function Page() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  delay: 0.1,
+                  duration: 0.45,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 className="w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/60 shadow-2xl backdrop-blur-md"
               >
                 <VideoRoom key={roomId} roomId={roomId} />
