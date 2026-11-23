@@ -17,6 +17,10 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { io } from "socket.io-client";
 import { useEffect, useState, useRef } from "react";
+
+type Gender = "Male" | "Female" | "Other";
+type FilterGender = "All" | Gender;
+type MatchPreferences = { isAdult: true; gender: Gender; filterGender: FilterGender };
 import VideoRoom from "./components/VideoRoom";
 
 const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000", {
@@ -30,7 +34,46 @@ export default function Page() {
   const [callDuration, setCallDuration] = useState(0);
   const [chatCount, setChatCount] = useState(0);
   const [lastCallDuration, setLastCallDuration] = useState<number | null>(null);
+  const [preferences, setPreferences] = useState<MatchPreferences | null>(null);
+  const [showEntryModal, setShowEntryModal] = useState(true);
+  const [isAdult, setIsAdult] = useState(false);
+  const [gender, setGender] = useState<Gender | "">("");
+  const [filterGender, setFilterGender] = useState<FilterGender | "">("");
   const callDurationRef = useRef(0);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("match-preferences");
+      if (saved) {
+        const parsed = JSON.parse(saved) as MatchPreferences;
+        if (parsed.isAdult === true && ["Male", "Female", "Other"].includes(parsed.gender) && ["All", "Male", "Female", "Other"].includes(parsed.filterGender)) {
+          setPreferences(parsed);
+          setIsAdult(true);
+          setGender(parsed.gender);
+          setFilterGender(parsed.filterGender);
+          setShowEntryModal(false);
+          return;
+        }
+      }
+    } catch {
+      sessionStorage.removeItem("match-preferences");
+    }
+    setShowEntryModal(true);
+  }, []);
+
+  const emitStartCall = () => {
+    if (preferences) socket.emit("start-call", preferences);
+  };
+
+  const savePreferences = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!isAdult || !gender || !filterGender) return;
+    const nextPreferences: MatchPreferences = { isAdult: true, gender, filterGender };
+    sessionStorage.setItem("match-preferences", JSON.stringify(nextPreferences));
+    setPreferences(nextPreferences);
+    setShowEntryModal(false);
+    if (status === "waiting") socket.emit("start-call", nextPreferences);
+  };
 
   useEffect(() => {
     callDurationRef.current = callDuration;
@@ -58,7 +101,7 @@ export default function Page() {
         if (prev <= 1) {
           clearInterval(interval);
           setstatus("waiting");
-          socket.emit("start-call");
+          emitStartCall();
           return 0;
         }
         return prev - 1;
@@ -80,7 +123,7 @@ export default function Page() {
 
   const StartAnonymousChat = () => {
     if (status === "waiting") return;
-    socket.emit("start-call");
+    emitStartCall();
     setstatus("waiting");
   };
 
@@ -91,7 +134,7 @@ export default function Page() {
     }
     setroomId("");
     setstatus("waiting");
-    socket.emit("start-call");
+    emitStartCall();
   };
 
   const handleEndCall = () => {
@@ -105,7 +148,7 @@ export default function Page() {
 
   const handleFindNow = () => {
     setstatus("waiting");
-    socket.emit("start-call");
+    emitStartCall();
   };
 
   const handleCancelReconnect = () => {
@@ -138,6 +181,40 @@ export default function Page() {
 
   return (
     <>
+      <button
+        type="button"
+        onClick={() => setShowEntryModal(true)}
+        className="fixed right-4 top-4 z-40 rounded-full border border-white/15 bg-zinc-900/90 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur hover:bg-zinc-800"
+      >
+        Match preferences
+      </button>
+      {showEntryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+          <form onSubmit={savePreferences} className="w-full max-w-md space-y-5 rounded-2xl border border-white/10 bg-zinc-900 p-6 text-white shadow-2xl">
+            <div>
+              <h2 id="entry-title" className="text-2xl font-bold">Before you continue</h2>
+              <p className="mt-1 text-sm text-zinc-400">Confirm your age and choose who you want to meet.</p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-3 text-sm">
+              <input type="checkbox" checked={isAdult} onChange={(event) => setIsAdult(event.target.checked)} className="h-4 w-4 accent-purple-500" />
+              I am 18 years or older
+            </label>
+            <label className="block text-sm font-medium">My Gender
+              <select required value={gender} onChange={(event) => setGender(event.target.value as Gender | "")} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white">
+                <option value="" disabled>Select your gender</option>
+                <option>Male</option><option>Female</option><option>Other</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium">Filter / Match With
+              <select required value={filterGender} onChange={(event) => setFilterGender(event.target.value as FilterGender | "")} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-white">
+                <option value="" disabled>Select a match preference</option>
+                <option>All</option><option>Male</option><option>Female</option><option>Other</option>
+              </select>
+            </label>
+            <button type="submit" disabled={!isAdult || !gender || !filterGender} className="w-full rounded-lg cursor-pointer bg-white px-4 py-3 font-bold text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40">Continue</button>
+          </form>
+        </div>
+      )}
       <Navbar show={!isConnected} />
       <main
         className={`relative flex w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-black via-zinc-900 to-black text-white transition-all duration-500 ${

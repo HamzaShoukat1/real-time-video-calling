@@ -18,7 +18,7 @@ export default function VideoRoom({ roomId }: { roomId: string }) {
 
         const start = async () => {
             const { ZegoUIKitPrebuilt } = await import("@zegocloud/zego-uikit-prebuilt");
-            
+
             if (!isMounted || !containerRef.current) return;
 
             const userId = crypto.randomUUID();
@@ -45,7 +45,7 @@ export default function VideoRoom({ roomId }: { roomId: string }) {
                 showPreJoinView: false,
                 showTextChat: true,
                 showRoomTimer: true,
-                showRoomDetailsButton: false, // Disables the empty room details drawer for anonymous 1-on-1 calls
+                showRoomDetailsButton: false,
                 maxUsers: 2,
             });
         };
@@ -56,7 +56,7 @@ export default function VideoRoom({ roomId }: { roomId: string }) {
             isMounted = false;
             if (zpref.current) {
                 try {
-                    zpref.current.destroy(); 
+                    zpref.current.destroy();
                 } catch (error) {
                     console.error("Error cleaning up Zego instance:", error);
                 } finally {
