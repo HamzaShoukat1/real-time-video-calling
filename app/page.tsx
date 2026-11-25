@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import {
   Video,
+  MessageCircle,
   Shield,
   ArrowRight,
   Loader2,
@@ -15,8 +16,14 @@ import {
 } from "lucide-react";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import TextChatRoom from "./components/TextChatRoom";
 import { io } from "socket.io-client";
 import { useEffect, useState, useRef } from "react";
+
+declare global {
+  // Keep one browser socket across Next.js Fast Refresh module evaluations.
+  var __vibesyncSocket: ReturnType<typeof io> | undefined;
+}
 
 type Gender = "Male" | "Female" | "Other";
 type FilterGender = "All" | Gender;
@@ -24,15 +31,15 @@ type MatchPreferences = {
   isAdult: true;
   gender: Gender;
   filterGender: FilterGender;
+  mode: "chat" | "video";
 };
 import VideoRoom from "./components/VideoRoom";
 
-const socket = io(
-  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000",
-  {
-    transports: ["websocket"],
-  },
-);
+const socket =
+  globalThis.__vibesyncSocket ??=
+    io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000", {
+      transports: ["websocket"],
+    });
 
 export default function Page() {
   const [status, setstatus] = useState("idle");
@@ -46,7 +53,24 @@ export default function Page() {
   const [isAdult, setIsAdult] = useState(false);
   const [gender, setGender] = useState<Gender | "">("");
   const [filterGender, setFilterGender] = useState<FilterGender | "">("");
+  const [mode, setMode] = useState<"chat" | "video">("video");
+  const [matchedMode, setMatchedMode] = useState<"chat" | "video">("video");
+  const [onlineCount, setOnlineCount] = useState(0);
   const callDurationRef = useRef(0);
+
+  useEffect(() => {
+    const onOnlineCount = (count: number) => setOnlineCount(count);
+    const requestOnlineCount = () => socket.emit("get-online-count");
+
+    socket.on("online-count", onOnlineCount);
+    socket.on("connect", requestOnlineCount);
+    if (socket.connected) requestOnlineCount();
+
+    return () => {
+      socket.off("online-count", onOnlineCount);
+      socket.off("connect", requestOnlineCount);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -56,12 +80,14 @@ export default function Page() {
         if (
           parsed.isAdult === true &&
           ["Male", "Female", "Other"].includes(parsed.gender) &&
-          ["All", "Male", "Female", "Other"].includes(parsed.filterGender)
+          ["All", "Male", "Female", "Other"].includes(parsed.filterGender) &&
+          ["chat", "video"].includes(parsed.mode)
         ) {
           setPreferences(parsed);
           setIsAdult(true);
           setGender(parsed.gender);
           setFilterGender(parsed.filterGender);
+          setMode(parsed.mode);
           setShowEntryModal(false);
           return;
         }
@@ -83,6 +109,7 @@ export default function Page() {
       isAdult: true,
       gender,
       filterGender,
+      mode,
     };
     sessionStorage.setItem(
       "match-preferences",
@@ -174,8 +201,9 @@ export default function Page() {
   };
 
   useEffect(() => {
-    const onMatched = ({ roomId }: { roomId: string }) => {
+    const onMatched = ({ roomId, mode }: { roomId: string; mode: "chat" | "video" }) => {
       setroomId(roomId);
+      setMatchedMode(mode);
       setstatus("connected");
       setChatCount((prev) => prev + 1);
     };
@@ -199,13 +227,15 @@ export default function Page() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setShowEntryModal(true)}
-        className="fixed right-4 top-4 z-40 rounded-full border border-white/15 bg-zinc-900/90 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur hover:bg-zinc-800"
-      >
-        Match preferences
-      </button>
+      <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowEntryModal(true)}
+          className="rounded-full border border-white/15 bg-zinc-900/90 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur hover:bg-zinc-800"
+        >
+          Match preferences
+        </button>
+      </div>
       {showEntryModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
@@ -271,6 +301,18 @@ export default function Page() {
                 <option>Other</option>
               </select>
             </label>
+            <fieldset className="space-y-2 text-sm">
+              <legend className="font-medium">How do you want to connect?</legend>
+              <div className="flex gap-3">
+                {(["chat", "video"] as const).map((chatMode) => (
+                  <label key={chatMode} className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-zinc-800 px-3 py-3 capitalize">
+                    <input type="radio" name="mode" value={chatMode} checked={mode === chatMode} onChange={() => setMode(chatMode)} className="accent-purple-500" />
+                    {chatMode === "chat" ? "Text chat only" : "Video call"}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400">You’ll only be matched with people who chose the same chat type.</p>
+            </fieldset>
             <button
               type="submit"
               disabled={!isAdult || !gender || !filterGender}
@@ -354,6 +396,24 @@ export default function Page() {
                 <span>100% Private & Encrypted Peer-to-Peer</span>
               </motion.div>
 
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
+                }}
+                className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-[0_0_24px_-10px_rgba(52,211,153,0.7)]"
+                aria-live="polite"
+                aria-label={`${onlineCount} people online`}
+                title="People currently connected"
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                </span>
+                <Users className="h-4 w-4 text-emerald-300" />
+                <span>{onlineCount} people online now</span>
+              </motion.div>
+
               {/* Session Stats Pill (if previous calls took place) */}
               {chatCount > 0 && lastCallDuration !== null && (
                 <motion.div
@@ -428,8 +488,8 @@ export default function Page() {
                   onClick={StartAnonymousChat}
                   className="group relative inline-flex cursor-pointer items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-bold text-zinc-950 shadow-[0_0_40px_-10px_rgba(255,255,255,0.6)] transition-all hover:bg-zinc-100 hover:shadow-[0_0_55px_-8px_rgba(255,255,255,0.85)] sm:px-10 sm:py-5 sm:text-lg"
                 >
-                  <Video className="h-5 w-5 text-zinc-950 transition-transform duration-300 group-hover:scale-110" />
-                  <span>Start Anonymous Chat</span>
+                  {mode === "chat" ? <MessageCircle className="h-5 w-5 text-zinc-950" /> : <Video className="h-5 w-5 text-zinc-950 transition-transform duration-300 group-hover:scale-110" />}
+                  <span>{mode === "chat" ? "Start Text Chat" : "Start Video Chat"}</span>
                   <ArrowRight className="h-5 w-5 text-zinc-700 transition-transform duration-300 group-hover:translate-x-1" />
                 </motion.button>
               </motion.div>
@@ -705,7 +765,11 @@ export default function Page() {
                 }}
                 className="w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/60 shadow-2xl backdrop-blur-md"
               >
-                <VideoRoom key={roomId} roomId={roomId} />
+                {matchedMode === "chat" ? (
+                  <TextChatRoom key={roomId} socket={socket} roomId={roomId} onNext={handleNextPartner} onEnd={handleEndCall} />
+                ) : (
+                  <VideoRoom key={roomId} roomId={roomId} />
+                )}
               </motion.div>
             </motion.div>
           )}
