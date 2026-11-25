@@ -21,7 +21,6 @@ import { io } from "socket.io-client";
 import { useEffect, useState, useRef } from "react";
 
 declare global {
-  // Keep one browser socket across Next.js Fast Refresh module evaluations.
   var __vibesyncSocket: ReturnType<typeof io> | undefined;
 }
 
@@ -118,11 +117,24 @@ export default function Page() {
     setPreferences(nextPreferences);
     setShowEntryModal(false);
     if (status === "waiting") socket.emit("start-call", nextPreferences);
+    if (status === "no-match") setstatus("idle");
   };
 
   useEffect(() => {
     callDurationRef.current = callDuration;
   }, [callDuration]);
+
+  useEffect(() => {
+    if (status !== "waiting") return;
+
+    const timeout = setTimeout(() => {
+      socket.emit("cancel-search", (cancelled: boolean) => {
+        if (cancelled) setstatus((current) => current === "waiting" ? "no-match" : current);
+      });
+    }, 30_000);
+
+    return () => clearTimeout(timeout);
+  }, [status]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -255,15 +267,6 @@ export default function Page() {
                 Confirm your age and choose who you want to meet.
               </p>
             </div>
-            <label className="flex cursor-pointer items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={isAdult}
-                onChange={(event) => setIsAdult(event.target.checked)}
-                className="h-4 w-4 accent-purple-500"
-              />
-              I am 18 years or older
-            </label>
             <label className="block text-sm font-medium">
               My Gender
               <select
@@ -313,6 +316,15 @@ export default function Page() {
               </div>
               <p className="text-xs text-zinc-400">You’ll only be matched with people who chose the same chat type.</p>
             </fieldset>
+            <label className="flex cursor-pointer items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={isAdult}
+                onChange={(event) => setIsAdult(event.target.checked)}
+                className="h-4 w-4 accent-purple-500"
+              />
+              I am 18 years or older
+            </label>
             <button
               type="submit"
               disabled={!isAdult || !gender || !filterGender}
@@ -573,6 +585,42 @@ export default function Page() {
                   </motion.span>
                 </span>
               </motion.div>
+            </motion.div>
+          )}
+
+          {status === "no-match" && (
+            <motion.div
+              key="no-match"
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.97 }}
+              className="relative z-10 flex w-full max-w-lg flex-col items-center rounded-3xl border border-white/10 bg-zinc-900/75 p-8 text-center shadow-2xl backdrop-blur-xl"
+            >
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-400/20 bg-purple-500/10">
+                <Users className="h-8 w-8 text-purple-300" />
+              </div>
+              <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                No match available right now
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                We couldn’t find someone who matches your gender and chat preferences. Try again later or broaden your filters.
+              </p>
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEntryModal(true)}
+                  className="rounded-full cursor-pointer bg-white px-5 py-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+                >
+                  Change preferences
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setstatus("idle")}
+                  className="rounded-full border cursor-pointer border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:bg-white/10"
+                >
+                  Back to home
+                </button>
+              </div>
             </motion.div>
           )}
 

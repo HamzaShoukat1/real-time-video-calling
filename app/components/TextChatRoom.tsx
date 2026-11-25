@@ -54,22 +54,7 @@ export default function TextChatRoom({
           <h2 className="font-semibold">Text chat</h2>
           <p className="text-xs text-zinc-400">Connected anonymously</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onNext}
-            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-950"
-          >
-            Next
-          </button>
-          <button
-            type="button"
-            onClick={onEnd}
-            className="rounded-full border border-red-400/30 px-4 py-2 text-sm font-semibold text-red-300"
-          >
-            Leave
-          </button>
-        </div>
+    
       </header>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-5" aria-live="polite">
